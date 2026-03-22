@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAccounts, setFreelancerRating } from '../../services/web3'; // Import getAccounts instead of connectWallet
+import { getAccounts, setFreelancerRating } from '../../services/web3';
 import { useNavigate } from 'react-router-dom';
 import './Auth.css';
 
@@ -11,10 +11,17 @@ function Auth() {
   const navigate = useNavigate();
 
   const fetchAccounts = async () => {
-    const accounts = await getAccounts(); // Use getAccounts for fetching accounts
-    if (accounts) {
-      setAccounts(accounts);
-      setSelectedAccount(accounts[0]);
+    try {
+      const accs = await getAccounts(); // Use getAccounts for fetching accounts
+      if (accs && accs.length) {
+        setAccounts(accs);
+        setSelectedAccount(accs[0]);
+      } else {
+        setErrorMessage('No accounts available or user denied wallet access.');
+      }
+    } catch (err) {
+      console.error('Error fetching accounts:', err);
+      setErrorMessage('Failed to connect wallet.');
     }
   };
 

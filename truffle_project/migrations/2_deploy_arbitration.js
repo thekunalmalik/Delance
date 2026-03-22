@@ -1,4 +1,4 @@
-// 3_deploy_arbitration.js
+// 2_deploy_arbitration.js
 const KlerosIntegration = artifacts.require("KlerosIntegration");
 
 module.exports = async function(deployer, network, accounts) {

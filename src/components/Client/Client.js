@@ -98,6 +98,8 @@
 // export default Client;
 
 // src/components/Client/Client.js
+
+
 import React, { useEffect, useState } from 'react';
 import { addProject, getBalance } from '../../services/web3';
 import { useNavigate } from 'react-router-dom';
@@ -110,9 +112,9 @@ function Client() {
   const [projectDescription, setProjectDescription] = useState('');
   const [projectBudget, setProjectBudget] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false); // Modal visibility state
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
-
+ 
   useEffect(() => {
     const account = localStorage.getItem('selectedAccount');
     if (account) {

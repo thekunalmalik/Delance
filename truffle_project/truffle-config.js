@@ -41,10 +41,10 @@
  * https://trufflesuite.com/docs/truffle/getting-started/using-the-truffle-dashboard/
  */
 
-// require('dotenv').config();
-// const { MNEMONIC, PROJECT_ID } = process.env;
+require('dotenv').config({ path: '../.env' });
+const HDWalletProvider = require('@truffle/hdwallet-provider');
 
-// const HDWalletProvider = require('@truffle/hdwallet-provider');
+// You can also access MNEMONIC/SEPOLIA_RPC_URL via process.env if needed.
 // // const mnemonic = "atom uncle weather permit horn maid already dizzy put endless believe baby"; // Replace with your wallet's mnemonic
 // const sepoliaRpcUrl = "https://quiet-newest-field.ethereum-sepolia.quiknode.pro/f024759691d7ce0e8c4cfdafa373040283eccc6e"; // Replace with QuickNode Sepolia RPC URL
 // const privateKey = "7e5d61ace022e831a46b716919bd0f97156c231fb898ee242c836b16e1117139"; // Replace with your private key
@@ -72,14 +72,15 @@ module.exports = {
      port: 7545,            // Standard Ethereum port (default: none)
      network_id: "*",       // Any network (default: none)
     },
-    // sepolia: {
-    //   provider: () => new HDWalletProvider(privateKey, sepoliaRpcUrl),
-    //   network_id: 11155111,  // Sepolia network ID
-    //   gas: 2000000,           // Customize based on your contract needs
-    //   gasPrice: 12000000000,  // Customize based on current gas prices on Sepolia
-    //   networkCheckTimeout: 100000,
-    //   from: "0xd3F6e5d281D9901Ce000c4B1591585946A14a8B0", // Replace with the address of the account
-    // }
+    sepolia: {
+      provider: () => new HDWalletProvider(process.env.MNEMONIC, process.env.SEPOLIA_RPC_URL),
+      network_id: 11155111,  // Sepolia network ID
+      gas: 5500000,          // Customize based on your contract needs
+      gasPrice: 20000000000, // 20 gwei
+      confirmations: 2,
+      timeoutBlocks: 200,
+      skipDryRun: true
+    }
     //
     // An additional network, but with some advanced options…
     // advanced: {

@@ -9,6 +9,7 @@
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
+    "@truffle/hdwallet-provider": "^2.1.15",
     "axios": "^1.7.7",
     "ethers": "^6.13.4",
     "framer-motion": "^11.11.9",
@@ -24,7 +25,10 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "ganache": "ganache -p 7545",
+    "migrate:dev": "truffle migrate --network development --reset",
+    "test:dev": "truffle test --network development"
   },
   "eslintConfig": {
     "extends": [
@@ -45,6 +49,7 @@
     ]
   },
   "devDependencies": {
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11"
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "ganache": "^7.9.0"
   }
 }

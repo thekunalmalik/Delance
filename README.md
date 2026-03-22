@@ -1,8 +1,13 @@
-# **Delance: A decentralised freelancing platform**
+# **Freelance: A decentralised freelancing platform**
 
 We have tried to make a **blockchain-based decentralised web application (DApp)** that allows freelancers and recruiters (clients) to connect on projects with built-in escrow. The recruiter (client) can put their project ideas and set the guidelines for the same. The freelancer can browse through the available projects on the platform and apply for the ones they are interested in. The freelancer will have to upload their files as a proof of work for each milestone that is set by the client.
 
-## Unique Selling Point: 
+# Freelance: A Decentralised Freelancing Platform
+
+This is a blockchain-based decentralised DApp that connects freelancers and clients with
+built-in escrow, automated ratings, and decentralized arbitration.
+
+ 
 The existing platforms don't have an **automated rating system**. Our platform automates the rating system so as to **prevent ratings being abused by malicious actors**.
 There also does not exist a comprehensive solution which automates the entire workflow and integrates it with **decentralized arbitration** as we have done. 
 The files are also uploaded on **IPFS** making them available as an **immutable proof** for the arbitrators. We have also **automated the payment of funds** after acceptance of proof of work for each milestone via **escrow contracts**.
@@ -63,52 +68,287 @@ To run this project, ensure you have the following installed:
 
 ## Installation and Setup
 
-1. **Clone the Repository**:
+### Quick Start (Ganache Local Development)
+
+1. **Clone & Install**:
    ```bash
-   https://github.com/sassy2711/Delance.git
+   git clone https://github.com/kunall0880/Freelance-.git
    cd Delance
+   npm install
+   ```
 
-2. **Install MetaMask**:
-- Install MetaMask from the [MetaMask website](https://metamask.io/).
+2. **Start Ganache** (Terminal 1):
+   ```bash
+   npm run ganache
+   ```
+   Runs a local blockchain at `127.0.0.1:7545` with 10 test accounts (100 ETH each).
 
-3. **Connecting MetaMask with ganache**:
-- Start ganache network.
-- Choose new workspace, give whatever name.
-- Click on add project, go to Delance/truffle_project, select the truffle-config.js file and then save the project(in ganache).
-- Copy the private key of an account.
-- Go to your metamask wallet.
-- Click on add account.
-- Click on import wallet.
-- Paste the private key.
-- The account is made.
-- Again go on the metamask wallet, connect the account.
-- Refresh at each step just in case.
-
-4. **Compile and Deploy Smart Contracts**:
-- Inside the project directory Delance, go to the truffle project directory.
-  ```bash
+3. **Deploy Smart Contracts** (Terminal 2):
+   ```bash
    cd truffle_project
-   truffle migrate
-- Now the contracts should have been deployed on the ganache network(fee deducted from your account is an indicator).
+   truffle migrate --network development --reset
+   ```
+   Output shows:
+   ```
+   Deploying 'Projects'
+      ... deployed at 0x560f7702093C56280F06AA56d0C7E1034DD6BfE9
+   Deploying 'RequestManager'
+      ... deployed at 0x1FB4b1457279A7181cEd5B90B1AF11046008ACdE
+   ```
 
-5. **Copy the JSON files**:
-- Go to Delance/truffle_project/build/contracts.
-- Copy all the files.
-- Go to Delance/src/contracts.
-- Paste the files.
+4. **⚠️ CRITICAL: Copy Contract Artifacts After Every Deploy**
+   
+   The React app **must** use fresh compiled ABIs. Run from `Delance` root:
+   
+   **Windows PowerShell:**
+   ```powershell
+   Copy-Item "truffle_project\build\contracts\Projects.json" "src\contracts\Projects.json" -Force
+   Copy-Item "truffle_project\build\contracts\RequestManager.json" "src\contracts\RequestManager.json" -Force
+   ```
+   
+   **macOS/Linux:**
+   ```bash
+   cp truffle_project/build/contracts/Projects.json src/contracts/
+   cp truffle_project/build/contracts/RequestManager.json src/contracts/
+   ```
+   
+   **⚠️ Without this step, you'll see: `AbiError: Parameter decoding error...`**
 
-7. **Copy the contract addresses in the web3.js file**:
-- In ganache, click on the contracts tab.
-- Click on the "Projects" contract, copy the address of the contract.
-- Go to Delance/src/services/web3.js, CTRL-F for PROJECTS_CONTRACT_ADDRESS. Paste the address for that variable.
-- Again, in ganache, click on the contracts tab.
-- Click on the "RequestManager" contract, copy the address of the contract.
-- Go to web3.js, CTRL-F for REQUEST_MANAGER_CONTRACT_ADDRESS. Paste the address for that variable.
-- The code would look like:
- - Line number 5 of web3.js : const PROJECTS_CONTRACT_ADDRESS = 'Address1';
- - Line number 6 of web3.js : const REQUEST_MANAGER_CONTRACT_ADDRESS = 'Address2';
-- So, you have to paste the Projects address in place of Address1 and the RequestManager address in place of Address2.
+5. **Configure MetaMask for Ganache**:
+   - Click MetaMask → Network Selector → **Add Network**.
+   - Fill in:
+     ```
+     Network name: Ganache
+     RPC URL: http://127.0.0.1:7545
+     Chain ID: 1337
+     Currency: ETH
+     ```
+   - Save and switch to Ganache.
+   - Import a test account: MetaMask → **Add Account** → **Import** → paste private key from Ganache.
 
+6. **Install MetaMask**:
+   Download from [MetaMask website](https://metamask.io/).
+
+6. **Configure MetaMask**
+
+   - Open MetaMask and click the network selector at the top.
+   - Choose **Add network** → **Add a custom network**.
+   - Fill in the values:
+     - Network name: `Ganache`
+     - RPC URL: `http://127.0.0.1:7545`
+     - Chain ID: `1337` (check your Ganache output if different)
+     - Currency symbol: `ETH`
+   - Save and **select Ganache** as the active network.
+   - Import one of the accounts listed in Ganache using its private key.
+
+   **Important:** if MetaMask is pointed at any other network (e.g. Sepolia or
+   Base), the app will prompt for gas and fail to locate the contracts. Always
+   switch to the Ganache network while developing locally.
+
+7. **Run the Frontend**
+
+   Install dependencies and start React (from `Delance` root):
+
+   ```bash
+   npm install
+   npm start
+   ```
+
+   The app will open at `http://localhost:3000`. Connect MetaMask when
+   prompted; the network ID and contract addresses are logged to the browser
+   console for debugging.
+
+8. **Test the DApp**
+
+   - Sign in as **Client** or **Freelancer**.
+   - Use the client UI to create projects and add milestones.
+   - Transactions execute instantly on Ganache with no gas cost.
+   - If you don't see your projects, check that:
+     1. MetaMask is on Ganache (chain ID 1337).
+     2. Contract artifacts were copied to `src/contracts/`.
+     3. Browser console shows no ABI errors.
+
+---
+
+## Deployment on Sepolia Testnet
+
+For public testnet deployment (optional):
+
+1. **Fund Your Account**:
+   Visit [sepoliafaucet.com](https://sepoliafaucet.com/) and claim Sepolia ETH.
+
+2. **Update `.env`**:
+   ```env
+   MNEMONIC="your twelve-word phrase"
+   SEPOLIA_RPC_URL="https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY"
+   ```
+
+3. **Deploy to Sepolia**:
+   ```bash
+   cd truffle_project
+   truffle migrate --network sepolia --reset
+   ```
+
+4. **Copy Artifacts** (same as Ganache step 4):
+   ```powershell
+   Copy-Item "truffle_project\build\contracts\Projects.json" "..\src\contracts\Projects.json" -Force
+   Copy-Item "truffle_project\build\contracts\RequestManager.json" "..\src\contracts\RequestManager.json" -Force
+   ```
+
+5. **Add Sepolia to MetaMask**:
+   - Network name: `Sepolia`
+   - RPC URL: `https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY`
+   - Chain ID: `11155111`
+   - Currency: `ETH`
+
+6. **Run the app** and test on Sepolia.
+
+---
+
+## Additional Scripts
+
+The `package.json` in the root of `Delance` includes a few helpful commands:
+
+```json
+{
+  "scripts": {
+    "ganache": "ganache -p 7545",
+    "migrate:dev": "truffle migrate --network development --reset",
+    "test:dev": "truffle test --network development"
+  }
+}
+```
+
+Use `npm run ganache` to launch the local chain, `npm run migrate:dev` to
+redeploy and `npm run test:dev` to execute the Solidity test suite locally.
+
+## Environment Variables
+
+The project uses a `.env` file (Gitignored) to store sensitive values. For
+local development you only need an optional mnemonic. Two variables can
+override contract addresses when connecting to other networks:
+
+```env
+REACT_APP_PROJECTS_CONTRACT_ADDRESS=0x...
+REACT_APP_REQUEST_MANAGER_ADDRESS=0x...
+```
+
+These are read by `src/services/web3.js` and take precedence over the artifact
+lookup.
+
+## Troubleshooting
+
+- **"AbiError: Parameter decoding error" or projects/milestones not loading**
+  - **Cause:** Stale or mismatched contract artifacts in `src/contracts/`.
+  - **Fix:** 
+    1. Re-run migrations: `truffle migrate --network development --reset`
+    2. **Copy fresh artifacts** (see step 4 above)
+    3. Reload the browser (`F5`)
+
+- **Contracts not found / "Unable to determine Projects contract address"**
+  - Ensure MetaMask is on the correct network:
+    - **Ganache:** Chain ID 1337, RPC `http://127.0.0.1:7545`
+    - **Sepolia:** Chain ID 11155111
+  - If switched, reload the page.
+  - Check browser console for network logs.
+
+- **MetaMask prompts for gas but transaction fails**
+  - MetaMask is connected to the wrong network. Switch to Ganache or Sepolia.
+  - Verify chain ID in the MetaMask network settings.
+
+- **Projects created but can't view them**
+  - Confirm MetaMask account matches the one used to create projects.
+  - Open browser console and look for any `Error fetching user projects` messages.
+  - Verify contract artifacts were copied after the latest deployment.
+    Ganache.
+  - Confirm the JSON artifact you copied contains the `networks` block with
+    the correct chain ID and address. Redeploy and recopy if necessary.
+  - Check the browser console for the log messages added by `getDeployedAddress`.
+
+- **Ganache CLI not recognized**
+  - Use `npm install` inside `Delance` to add `ganache` binary. The script
+    `npm run ganache` should then work.
+  - You can also install `ganache` globally: `npm install -g ganache`.
+
+- **Chain ID mismatch (5777 vs 1337)**
+  - Update `truffle-config.js` to match the `chainId` reported by Ganache, or
+    run Ganache with `--chainId 1337`.
+
+- **MetaMask refuses transaction from localhost**
+  - Make sure the request origin (`http://localhost:3000`) is allowed in
+    MetaMask settings under "Connected sites" and you have unlocked the
+    imported account.
+
+## Deploying to a Testnet or Mainnet
+
+When you're ready to move off Ganache, configure a network entry in
+`truffle-config.js` with an HDWallet provider and appropriate RPC URL. Set the
+environment variables `MNEMONIC` and, for example, `SEPOLIA_RPC_URL` or
+`INFURA_API_KEY`. The frontend will then pick up addresses via the artifacts
+(or env overrides if provided).
+
+---
+
+## Gitignore
+
+The project already includes a `.gitignore` file to keep sensitive or
+machine-specific files out of version control. Here's a sample you can
+reference or extend:
+
+```
+# React build output
+/node_modules/
+/build/
+/dist/
+
+# local env files
+.env
+
+# Truffle build artifacts (optional if you copy to src/contracts)
+/truffle_project/build/contracts/
+
+# IDE/editor directories
+.vscode/
+.idea/
+
+# log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+```
+
+Make sure your own `.env` never gets committed; it contains your mnemonic
+and RPC URLs. You can add additional entries such as `*.secret` or other
+private data.
+
+## Links
+
+- [Truffle documentation](https://www.truffleframework.com/docs/)
+- [Ganache CLI](https://www.trufflesuite.com/ganache)
+- [MetaMask custom RPC guide](https://metamask.io/faqs/#c6)
+
+## References
+
+This project is based on the original
+[Delance](https://github.com/kunall0880/Freelance-) repository by @kunall0880.
+The current setup focuses on **local development with Ganache** to avoid testnet
+gas fees and enable rapid iteration.
+
+**Key Changes for Local Development:**
+- Dynamic contract address resolution from build artifacts
+- Ganache network configuration (chain ID 1337)
+- Automated npm scripts for `ganache`, `migrate:dev`, and `test:dev`
+- Enhanced troubleshooting and MetaMask setup guidance
+
+For the complete feature set and original design, see the
+[original repository](https://github.com/kunall0880/Freelance-).
+
+Happy hacking! Feel free to file issues or pull requests in this repo if you
+want to refine the setup or add automation.  
 
 ## Running the Application
 
@@ -129,4 +369,4 @@ To run this project, ensure you have the following installed:
 3. **Automatic Rating Adjustment**:
    - Ratings for both the client and freelancer are updated based on the arbitration outcome, influencing each party’s reputation on the platform.
 
-   
+

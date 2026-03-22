@@ -14,7 +14,7 @@
 // //       setSelectedAccount(account);
 // //       fetchBalance(account);
 // //     }
-// //   }, []);
+// //   }, []); 
 
 // //   const fetchBalance = async (account) => {
 // //     const { web3 } = await connectWallet();

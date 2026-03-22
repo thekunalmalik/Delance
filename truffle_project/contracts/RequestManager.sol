@@ -85,6 +85,37 @@ contract RequestManager {
         bool accepted;
     }
     
+    struct RequestDraft {
+        uint id;
+        uint requestId;
+        uint projectId;
+        address freelancer;
+        address employer;
+        string draftContent; // Could be description or proposal
+        uint timestamp;
+        bool reviewed;
+    }
+    
+    struct FreelancerRating {
+        uint ratingId;
+        uint requestId;
+        address rater; // employer
+        address freelancer;
+        uint rating; // 1-5 stars
+        string review;
+        uint timestamp;
+    }
+    
+    struct ProjectCompletion {
+        uint completionId;
+        uint projectId;
+        uint requestId;
+        address employer;
+        address freelancer;
+        bool isCompleted;
+        uint completionTime;
+    }
+    
     mapping(uint => ReviewResponse) public reviewResponses;
     uint public responseCount;
 
@@ -99,6 +130,18 @@ contract RequestManager {
     mapping(uint => MilestoneReviewRequest) public milestoneReviewRequests;
     uint public milestoneReviewRequestCount;
 
+    // New mappings for additional features
+    mapping(uint => RequestDraft) public requestDrafts;
+    uint public requestDraftCount;
+    
+    mapping(uint => FreelancerRating) public freelancerRatings;
+    uint public freelancerRatingCount;
+    
+    mapping(uint => ProjectCompletion) public projectCompletions;
+    uint public projectCompletionCount;
+    
+    mapping(address => uint[]) public freelancerRatingsList; // Track ratings per freelancer
+
     event RequestSent(uint requestId, uint projectId, address freelancer);
     event RequestAccepted(uint requestId, address freelancer, address escrowContract);
     event RequestRejected(uint requestId, address freelancer);
@@ -106,6 +149,9 @@ contract RequestManager {
     event MilestoneAccepted(uint projectId, uint milestoneId, uint updatedRating);
     event MilestoneReviewRequestRejected(uint indexed reviewRequestId, string reason);
     event RejectionReasonAccepted(uint _reviewRequestId);
+    event RequestDraftSent(uint draftId, uint requestId, address freelancer, address employer);
+    event FreelancerRatingSubmitted(uint ratingId, address rater, address freelancer, uint rating);
+    event ProjectCompleted(uint projectId, uint requestId, address employer, address freelancer);
 
     constructor(address _projectsContract) {
         projectsContract = Projects(_projectsContract);
@@ -821,5 +867,150 @@ contract RequestManager {
         return (ids, milestoneIds, names, rids, cids);
     }
 
+    // ===== NEW FUNCTIONS FOR ADDITIONAL FEATURES =====
 
+    /**
+     * Send a request draft from freelancer to employer (client)
+     */
+    function sendRequestDraft(uint _requestId, string memory _draftContent) public {
+        Request storage request = requests[_requestId];
+        require(request.freelancer != address(0), "Request does not exist");
+        require(request.freelancer == msg.sender, "Only the freelancer can send drafts");
+        
+        // Get employer address from project
+        (,, , , , address employer) = projectsContract.getProject(request.projectId);
+        
+        requestDraftCount++;
+        requestDrafts[requestDraftCount] = RequestDraft({
+            id: requestDraftCount,
+            requestId: _requestId,
+            projectId: request.projectId,
+            freelancer: msg.sender,
+            employer: employer,
+            draftContent: _draftContent,
+            timestamp: block.timestamp,
+            reviewed: false
+        });
+        
+        emit RequestDraftSent(requestDraftCount, _requestId, msg.sender, employer);
+    }
+
+    /**
+     * Get all request drafts for a specific request
+     */
+    function getRequestDrafts(uint _requestId) public view returns (RequestDraft[] memory) {
+        uint count = 0;
+        for (uint i = 1; i <= requestDraftCount; i++) {
+            if (requestDrafts[i].requestId == _requestId) {
+                count++;
+            }
+        }
+        
+        RequestDraft[] memory drafts = new RequestDraft[](count);
+        uint index = 0;
+        for (uint i = 1; i <= requestDraftCount; i++) {
+            if (requestDrafts[i].requestId == _requestId) {
+                drafts[index] = requestDrafts[i];
+                index++;
+            }
+        }
+        return drafts;
+    }
+
+    /**
+     * Allows employer (client) to rate freelancer
+     */
+    function rateFreelancer(uint _requestId, uint _rating, string memory _review) public {
+        require(_rating > 0 && _rating <= 5, "Rating must be between 1 and 5");
+        
+        Request storage request = requests[_requestId];
+        require(request.freelancer != address(0), "Request does not exist");
+        
+        // Get employer address from project
+        (,, , , , address employer) = projectsContract.getProject(request.projectId);
+        require(msg.sender == employer, "Only the employer can rate the freelancer");
+        
+        freelancerRatingCount++;
+        freelancerRatings[freelancerRatingCount] = FreelancerRating({
+            ratingId: freelancerRatingCount,
+            requestId: _requestId,
+            rater: msg.sender,
+            freelancer: request.freelancer,
+            rating: _rating,
+            review: _review,
+            timestamp: block.timestamp
+        });
+        
+        freelancerRatingsList[request.freelancer].push(freelancerRatingCount);
+        
+        emit FreelancerRatingSubmitted(freelancerRatingCount, msg.sender, request.freelancer, _rating);
+    }
+
+    /**
+     * Get all ratings for a specific freelancer
+     */
+    function getFreelancerRatings(address _freelancer) public view returns (FreelancerRating[] memory) {
+        uint[] memory ratingIds = freelancerRatingsList[_freelancer];
+        FreelancerRating[] memory ratings = new FreelancerRating[](ratingIds.length);
+        
+        for (uint i = 0; i < ratingIds.length; i++) {
+            ratings[i] = freelancerRatings[ratingIds[i]];
+        }
+        
+        return ratings;
+    }
+
+    /**
+     * Get average rating for a freelancer
+     */
+    function getFreelancerAverageRating(address _freelancer) public view returns (uint) {
+        uint[] memory ratingIds = freelancerRatingsList[_freelancer];
+        if (ratingIds.length == 0) return 0;
+        
+        uint totalRating = 0;
+        for (uint i = 0; i < ratingIds.length; i++) {
+            totalRating += freelancerRatings[ratingIds[i]].rating;
+        }
+        
+        return totalRating / ratingIds.length;
+    }
+
+    /**
+     * Mark project as completed by employer (client)
+     */
+    function completeProject(uint _requestId) public {
+        Request storage request = requests[_requestId];
+        require(request.freelancer != address(0), "Request does not exist");
+        require(request.status == RequestStatus.Accepted, "Request must be accepted");
+        
+        // Get employer address from project
+        (,, , , , address employer) = projectsContract.getProject(request.projectId);
+        require(msg.sender == employer, "Only the employer can complete the project");
+        
+        projectCompletionCount++;
+        projectCompletions[projectCompletionCount] = ProjectCompletion({
+            completionId: projectCompletionCount,
+            projectId: request.projectId,
+            requestId: _requestId,
+            employer: employer,
+            freelancer: request.freelancer,
+            isCompleted: true,
+            completionTime: block.timestamp
+        });
+        
+        emit ProjectCompleted(request.projectId, _requestId, employer, request.freelancer);
+    }
+
+    /**
+     * Get project completion status
+     */
+    function getProjectCompletion(uint _projectId) public view returns (ProjectCompletion memory) {
+        for (uint i = 1; i <= projectCompletionCount; i++) {
+            if (projectCompletions[i].projectId == _projectId) {
+                return projectCompletions[i];
+            }
+        }
+        revert("Project completion not found");
+    }
 }
+

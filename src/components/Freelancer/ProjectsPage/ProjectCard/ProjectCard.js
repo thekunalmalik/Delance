@@ -20,7 +20,6 @@ const FreelancerProjectCard = ({ project, selectedAccount }) => { // Accept sele
         try {
           const rating = await getFreelancerRating(selectedAccount);
           setFreelancerRating(rating.rating);
-          console.log(freelancerRating);
         } catch (error) {
           console.error('Error fetching freelancer rating:', error);
         }

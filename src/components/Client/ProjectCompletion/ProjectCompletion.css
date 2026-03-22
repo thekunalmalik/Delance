@@ -1,0 +1,143 @@
+.project-completion-container {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  margin: 15px 0;
+  border: 1px solid #e0e0e0;
+}
+
+.project-completion-container h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.instruction-text {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 15px;
+  line-height: 1.5;
+}
+
+.btn-complete-project {
+  padding: 12px 25px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-complete-project:hover {
+  background-color: #0056b3;
+}
+
+.confirmation-box {
+  background: white;
+  padding: 20px;
+  border-radius: 4px;
+  border: 2px solid #ffc107;
+  margin-top: 15px;
+}
+
+.confirmation-box h4 {
+  color: #333;
+  margin-top: 0;
+}
+
+.confirmation-box p {
+  color: #666;
+  line-height: 1.6;
+  margin: 10px 0;
+}
+
+.confirmation-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.btn-confirm,
+.btn-cancel {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-confirm {
+  background-color: #28a745;
+  color: white;
+  flex: 1;
+}
+
+.btn-confirm:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.btn-confirm:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.btn-cancel {
+  background-color: #6c757d;
+  color: white;
+  flex: 1;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+
+.btn-cancel:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.completion-success {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
+  padding: 20px;
+  text-align: center;
+}
+
+.completion-success h3 {
+  color: #155724;
+  margin-top: 0;
+}
+
+.completion-success p {
+  color: #155724;
+  margin: 5px 0;
+}
+
+.project-id {
+  font-size: 12px;
+  color: #666;
+}
+
+.message {
+  margin-top: 15px;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.message.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.message.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}

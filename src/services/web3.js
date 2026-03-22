@@ -1,30 +1,72 @@
 import Web3 from 'web3';
 import ProjectsContract from '../contracts/Projects.json'; 
 import RequestManagerContract from '../contracts/RequestManager.json';
-import { verifyIPFSFile, downloadFileFromIPFS } from './ipfs';
-const PROJECTS_CONTRACT_ADDRESS = '0x1c3bcE3dB6460931BFC987b908BF3b1cd2ffcDE9';
-const REQUEST_MANAGER_CONTRACT_ADDRESS = '0x793D78c5D43fE69A9606b176d9A36f560A3eEA0f';
-//const KLEROS_CONTRACT_ADDRESS = '0x7d88a1E4Ad904dE3A3B7eDC8A94c567E80b05979';
+import { downloadFileFromIPFS } from './ipfs';
+
+// helper to pick contract address from deployed networks or fall back to an env var
+const getDeployedAddress = async (web3, contractJson, envVar) => {
+  // prefer explicit env var for situations like hosted testnet
+  if (process.env[envVar]) {
+    console.log(`Using ${envVar} from environment:`, process.env[envVar]);
+    return process.env[envVar];
+  }
+
+  const networkId = await web3.eth.net.getId();
+  console.log(`Detected network ID: ${networkId}, contract: ${contractJson.contractName}`);
+  
+  if (contractJson.networks && contractJson.networks[networkId]) {
+    const address = contractJson.networks[networkId].address;
+    console.log(`Found address for network ${networkId}: ${address}`);
+    return address;
+  }
+  
+  // Fallback: try common Ganache network IDs if exact match not found
+  const ganacheIds = ['5777', '1337'];
+  for (const id of ganacheIds) {
+    if (contractJson.networks && contractJson.networks[id]) {
+      console.log(`Falling back to Ganache network ${id}: ${contractJson.networks[id].address}`);
+      return contractJson.networks[id].address;
+    }
+  }
+  
+  console.error(`No address found for network ${networkId} or any Ganache fallback for ${contractJson.contractName}`);
+  console.log('Available networks:', Object.keys(contractJson.networks || {}));
+  return null;
+};
+
+// note: the old hardcoded addresses have been removed to enable local development with Ganache
+
 
 export const connectWallet = async () => {
   if (window.ethereum) {
-    const web3 = new Web3(window.ethereum);
+    // handle cases where multiple wallets are injected (e.g. MetaMask + Phantom)
+    let provider = window.ethereum;
+    if (provider.providers && Array.isArray(provider.providers)) {
+      // prefer MetaMask if present
+      const mm = provider.providers.find(p => p.isMetaMask);
+      provider = mm || provider.providers[0];
+    }
+
+    const web3 = new Web3(provider);
     try {
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
       return { accounts, web3 };
     } catch (error) {
-      console.error('User denied account access:', error);
+      console.error('Wallet access denied or failed:', error);
       return null;
     }
   } else {
-    console.error('MetaMask not found');
+    console.error('No Ethereum provider detected. Install MetaMask and refresh.');
     return null;
   }
 };
 
 export const getAccounts = async () => {
-  const { accounts } = await connectWallet();
-  return accounts;
+  const result = await connectWallet();
+  if (result && result.accounts) {
+    return result.accounts;
+  }
+  return []; // no accounts available or user denied access
 };
 
 export const getBalance = async (account) => {
@@ -43,20 +85,30 @@ export const getStoredCredentials = () => {
   return { account, role };
 };
 
-// Initialize Projects contract instance
+// Initialize Projects contract instance (address resolved dynamically)
 export const getProjectsContract = async () => {
   const { web3 } = await connectWallet();
   if (web3) {
-    return new web3.eth.Contract(ProjectsContract.abi, PROJECTS_CONTRACT_ADDRESS);
+    const address = await getDeployedAddress(web3, ProjectsContract, 'REACT_APP_PROJECTS_CONTRACT_ADDRESS');
+    if (!address) {
+      console.error('Unable to determine Projects contract address for current network.');
+      return null;
+    }
+    return new web3.eth.Contract(ProjectsContract.abi, address);
   }
   return null;
 };
 
-// Initialize RequestManager contract instance
+// Initialize RequestManager contract instance (address resolved dynamically)
 export const getRequestManagerContract = async () => {
   const { web3 } = await connectWallet();
   if (web3) {
-    return new web3.eth.Contract(RequestManagerContract.abi, REQUEST_MANAGER_CONTRACT_ADDRESS);
+    const address = await getDeployedAddress(web3, RequestManagerContract, 'REACT_APP_REQUEST_MANAGER_ADDRESS');
+    if (!address) {
+      console.error('Unable to determine RequestManager contract address for current network.');
+      return null;
+    }
+    return new web3.eth.Contract(RequestManagerContract.abi, address);
   }
   return null;
 };
@@ -392,12 +444,39 @@ export const fetchAcceptedProjectsByFreelancer = async (freelancer) => {
 
 export async function addFile(milestoneId, name, rid, cid, account) {
   try {
+      // Validate all required parameters
+      if (!milestoneId || milestoneId === undefined || milestoneId === null) {
+        throw new Error("Missing required parameter: milestoneId");
+      }
+      if (!name || typeof name !== 'string' || name.trim() === '') {
+        throw new Error("Missing required parameter: name (must be a non-empty string)");
+      }
+      if (!rid || typeof rid !== 'string' || rid.trim() === '') {
+        throw new Error("Missing required parameter: rid (must be a non-empty string)");
+      }
+      if (!cid || typeof cid !== 'string' || cid.trim() === '') {
+        throw new Error("Missing required parameter: cid (must be a non-empty string)");
+      }
+      if (!account || typeof account !== 'string' || account.trim() === '') {
+        throw new Error("Missing required parameter: account (must be a valid address)");
+      }
+
       // Get the contract instance
       const contract = await getRequestManagerContract();
       // Call the addFile function in the smart contract
-      await contract.methods.addFile(milestoneId, name, rid, cid).send({ from: account });
-      await contract.methods.sendMilestoneReviewRequest(milestoneId, cid, account).send({from: account});
-      console.log('Transaction successful:');
+      await contract.methods.addFile(
+        String(milestoneId),
+        String(name),
+        String(rid),
+        String(cid)
+      ).send({ from: account });
+      
+      await contract.methods.sendMilestoneReviewRequest(
+        String(milestoneId),
+        String(cid),
+        account
+      ).send({from: account});
+      console.log('Transaction successful: File added');
   } catch (error) {
       console.error('Error calling addFile:', error);
       throw error;
@@ -410,44 +489,64 @@ export async function addFile(milestoneId, name, rid, cid, account) {
  */
 export const downloadFilesForMilestone = async (milestoneId) => {
   try {
-    console.log("Inside download function");
+    console.log("Fetching files for milestone:", milestoneId);
     
     // Call the smart contract function to get all files for the milestone
     const contract = await getRequestManagerContract();
-    console.log(2);
     const result = await contract.methods.viewAllFilesForMilestone(milestoneId).call();
-    console.log(3);
+    
     // Destructure the result
     const ids = result[0];
     const names = result[2];
     const cids = result[4];
-    console.log(`Number of files to download: ${ids.length}`);
-
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-    console.log(1);
-    // Iterate through the files and download each one
-    for (let i = 0; i < ids.length; i++) {
-      const cid = cids[i];
-      const filename = names[i] || `downloadedFile_${ids[i]}`; // Use the name, or a default if name is empty
-      console.log(i);
-      await downloadFileFromIPFS(cid, filename);
-      await delay(15000); // Wait before the next download
-      // // Verify if the file exists on IPFS
-      // const response = await verifyIPFSFile(cid);
-      // const { exists } = response; // Destructure to get the 'exists' property
-
-      // if (exists) {
-      //   console.log(`File exists for CID: ${cid}. Proceeding to download...`);
-      //   await downloadFileFromIPFS(cid, filename);
-      //   await delay(15000); // Wait before the next download
-      // } else {
-      //   console.log(`File does not exist for CID: ${cid}. Skipping download.`);
-      // }
+    
+    if (!ids || ids.length === 0) {
+      console.log("No files found for milestone:", milestoneId);
+      throw new Error(`No files found for milestone ${milestoneId}`);
     }
 
-    console.log('All files processed for milestone:', milestoneId);
+    console.log(`Found ${ids.length} file(s) to download`);
+
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    const downloadErrors = [];
+    let successCount = 0;
+
+    // Iterate through the files and download each one
+    for (let i = 0; i < ids.length; i++) {
+      try {
+        const cid = cids[i];
+        const filename = names[i] || `downloadedFile_${ids[i]}`;
+        
+        if (!cid) {
+          console.warn(`Skipping file ${i + 1}: No CID provided`);
+          continue;
+        }
+
+        console.log(`Downloading file ${i + 1}/${ids.length}: ${filename} (CID: ${cid})`);
+        await downloadFileFromIPFS(cid, filename);
+        successCount++;
+        
+        // Wait before the next download to avoid rate limiting
+        if (i < ids.length - 1) {
+          await delay(1000);
+        }
+      } catch (fileError) {
+        console.error(`Error downloading file ${i + 1}:`, fileError);
+        downloadErrors.push({
+          index: i,
+          error: fileError.message
+        });
+      }
+    }
+
+    console.log(`Download complete: ${successCount}/${ids.length} files downloaded successfully`);
+    
+    if (downloadErrors.length > 0) {
+      throw new Error(`Downloaded ${successCount} file(s) but encountered ${downloadErrors.length} error(s)`);
+    }
   } catch (error) {
     console.error('Error downloading files for milestone:', error);
+    throw error;
   }
 };
 
@@ -571,5 +670,114 @@ export const acceptRejectionReason = async (reviewRequestId, selectedAccount) =>
   } catch (error) {
     console.error("Error accepting rejection reason:", error);
     throw error; // Re-throw the error for further handling if needed
+  }
+};
+
+// ===== NEW FUNCTIONS FOR ADDITIONAL FEATURES =====
+
+/**
+ * Send a request draft from freelancer to employer
+ */
+export const sendRequestDraft = async (requestId, draftContent, selectedAccount) => {
+  try {
+    const contract = await getRequestManagerContract();
+    const receipt = await contract.methods.sendRequestDraft(requestId, draftContent)
+      .send({ from: selectedAccount });
+    console.log('Request draft sent successfully:', receipt);
+    return receipt;
+  } catch (error) {
+    console.error('Error sending request draft:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all request drafts for a specific request
+ */
+export const getRequestDrafts = async (requestId) => {
+  try {
+    const contract = await getRequestManagerContract();
+    const drafts = await contract.methods.getRequestDrafts(requestId).call();
+    return drafts;
+  } catch (error) {
+    console.error('Error fetching request drafts:', error);
+    throw error;
+  }
+};
+
+/**
+ * Rate a freelancer (called by client/employer)
+ */
+export const rateFreelancer = async (requestId, rating, review, selectedAccount) => {
+  try {
+    if (rating < 1 || rating > 5) {
+      throw new Error('Rating must be between 1 and 5');
+    }
+    const contract = await getRequestManagerContract();
+    const receipt = await contract.methods.rateFreelancer(requestId, rating, review)
+      .send({ from: selectedAccount });
+    console.log('Freelancer rating submitted:', receipt);
+    return receipt;
+  } catch (error) {
+    console.error('Error rating freelancer:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all ratings for a specific freelancer
+ */
+export const getFreelancerRatings = async (freelancerAddress) => {
+  try {
+    const contract = await getRequestManagerContract();
+    const ratings = await contract.methods.getFreelancerRatings(freelancerAddress).call();
+    return ratings;
+  } catch (error) {
+    console.error('Error fetching freelancer ratings:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get average rating for a freelancer
+ */
+export const getFreelancerAverageRating = async (freelancerAddress) => {
+  try {
+    const contract = await getRequestManagerContract();
+    const averageRating = await contract.methods.getFreelancerAverageRating(freelancerAddress).call();
+    return parseInt(averageRating) / 1; // Convert to decimal if needed
+  } catch (error) {
+    console.error('Error fetching freelancer average rating:', error);
+    throw error;
+  }
+};
+
+/**
+ * Complete a project (called by client/employer)
+ */
+export const completeProject = async (requestId, selectedAccount) => {
+  try {
+    const contract = await getRequestManagerContract();
+    const receipt = await contract.methods.completeProject(requestId)
+      .send({ from: selectedAccount });
+    console.log('Project completed:', receipt);
+    return receipt;
+  } catch (error) {
+    console.error('Error completing project:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get project completion status
+ */
+export const getProjectCompletion = async (projectId) => {
+  try {
+    const contract = await getRequestManagerContract();
+    const completion = await contract.methods.getProjectCompletion(projectId).call();
+    return completion;
+  } catch (error) {
+    console.error('Error fetching project completion:', error);
+    throw error;
   }
 };
